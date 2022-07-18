@@ -1,0 +1,5 @@
+fbprophet==0.7.1
+matplotlib==3.5.2
+pandas==1.4.2
+plotly==5.8.0
+streamlit==1.11.0
