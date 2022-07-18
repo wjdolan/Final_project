@@ -1,12 +1,16 @@
 # Time Series Analysis and Prediction
  
- This is the final project for LighthouseLabs. It performs time series analysis and predicts future values based on various models
+ This is the final project for LighthouseLabs. It performs time series analysis and predicts future values based on statistical and ml models:
 
- It uses supervised learning based on the following data:
->   *   gasoline sales volumes (EIA data from 1983-2021)
->   *   Kerosene sales volumes (EIA data from 1983-2021)
->   *   
->   *   
+
+>   *   ARIMA
+>   *   SARIMA
+>   *   LSTM
+>   *   CNN-LSTM
+>   *   Conv-LSTM
+
+The time series data is pulled from the EIA website for gasoline and other petroleum product consumption
+ 
 
 ## Table of Contents
 >   * [Data](/data)
