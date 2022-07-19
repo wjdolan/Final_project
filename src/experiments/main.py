@@ -43,20 +43,25 @@ conn = None
 
 # Models:
 
-train_length = 800 # train / test split
+train_length = 800 # train split
+test_length = len(df) - train_length    # test split 
 
 train, test = tts(df,train_length, 'Volume_kbbld_gas')
 
 eval_df = pd.DataFrame(columns=['Model', 'MAPE', 'RMSE'])
+
 
 # Baseline model (6-step moving average)
 
 df['MA6'] = df['Volume_kbbld_gas'].rolling(6).mean()
 df = df.fillna(0)
 
-df['Base'] = np.where(df.index < length, 0, 8897) # use last MA value for prediction
 
-base_mape, base_RMSE = metric_evals(test[:128], df.loc[train_length:, 'base'])
+df['Base'] = np.where(df.index < train_length, 0, df.loc[(train_length-1):train_length, 'MA6']) # use last MA value for prediction
+
+
+
+base_mape, base_RMSE = metric_evals(test[:test_length], df.loc[train_length:, 'base'])
 
 eval_df.loc[0] = ['Base'] + [base_mape] + [base_RMSE]
 
