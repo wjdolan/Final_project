@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
-from fbprophet import Prophet
-from fbprophet.plot import plot_plotly
+from prophet import Prophet
+from prophet.plot import plot_plotly
 
 header = st.container()
 dataset = st.container()
@@ -44,7 +44,7 @@ with dataset:
     sel_series = st.selectbox('Choose a graph to plot:', options=['Ethane', 'Propane', 'Gasoline', 'Jet Fuel'])
     
     fig_df = df.filter(items=['Date', sel_series])
-    figp = px.line(fig_df, x='Date', y=sel_series +'kbbld', title=sel_series + ' demand')
+    figp = px.line(fig_df, x='Date', y=sel_series, title=sel_series + ' demand')
     st.plotly_chart(figp, use_container_width=True)
 
 with modelTrainer:
@@ -53,5 +53,6 @@ with modelTrainer:
     if st.button('Start Forecast'):
         st.write('Forecasting...')
         make_forecast(sel_series, df)
+        
     else:
         st.write('Click button to forecast')

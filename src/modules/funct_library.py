@@ -1,70 +1,24 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+from regex import E
 import seaborn as sns
-from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, precision_recall_curve
+from sklearn.preprocessing import MinMaxScaler, FunctionTransformer
+from sklearn.pipeline import Pipeline
 import requests
 import statsmodels
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 from pandas.plotting import register_matplotlib_converters
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+import pmdarima as pm
 from pmdarima.arima.utils import ndiffs
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense,Dropout
+from tensorflow.keras.layers import LSTM
 
 
-
-
-def clf_threshold(y_predict, y_prob, y_test):
-    """
-    Returns plot of precision / recall vs threshold
-    
-        Parameters:
-            y_predict(float):  y_predict from fitted model
-            y_prob(float):     y_probability from fitted model (predict_proba)
-            y_test(array):     target values from test set
-            
-        Output:
-            Plot      
-    
-    """
-
-    precision, recall, thresholds = precision_recall_curve(y_test, probs_y[:, 1]) 
-
-    pr_auc = metrics.auc(recall, precision)
-
-    plt.title("Precision-Recall vs Threshold Chart")
-    plt.plot(thresholds, precision[: -1], "b--", label="Precision")
-    plt.plot(thresholds, recall[: -1], "r--", label="Recall")
-    plt.ylabel("Precision, Recall")
-    plt.xlabel("Threshold")
-    plt.legend(loc="lower left")
-    plt.ylim([0,1])
-
-    return
-
-
-def top_categories(X, perc):
-    """
-        Returns dominant groups in category by %
-    
-        Parameters:
-            X (list):      column of values
-            perc (float):  threshold for cutoff (percentage)
-            
-        Returns:
-            List of top groups
-    
-    """
-    
-    val_list = []
-    key_list = []
-    denom = sum(X.values())
-    
-    for count, (keys, values) in enumerate(X.items()):
-        if (sum(val_list)/denom) < perc:
-            key_list.append(keys)
-            val_list.append(values)
-            
-    return val_list, key_list
 
 
 def plot_history(history):
@@ -118,9 +72,7 @@ def request_to_df(URL, url_series, df, name):
 
         if name == "gasoline":
             df = df.append({'Date': df_date, 'Volume_kbbld_gas': df_value}, ignore_index=True)
-        if name == "jetfuel":
-            df = df.append({'Date': df_date, 'Volume_kbbld_jet': df_value}, ignore_index=True)
-
+       
         return df
 
 
@@ -238,3 +190,105 @@ def resid_plot(model):
   # fig.savefig('gas_residuals.png')
 
   plt.show()
+
+
+def connect_to_db(host_name, dbname, port, username, password):
+    try:
+        conn = ps.connect(host=host_name, databse=dbname, user=username, password=password, port=port)
+
+    except ps.OperationalError as e:
+        raise e
+    else:
+        print('Connected!')
+    return conn
+
+
+def create_table(curr):
+    create_table_command = (""" CREATE TABLE IF NOT EXISTS Fuel_demand (
+                index VARCHAR (255) PRIMARY KEY,
+                Date DATE NOT NULL,
+                Volume_gas_kbbld INTEGER NOT NULL)""")
+
+    curr.execute(create_table_command)
+
+
+def tts(df,length,column):
+    """
+        Create training and test split of data
+        Input: dataframe (df), length to split (int)
+        Output: train and test dataframes
+    """
+    train = df.loc[:length,[column]]
+    test = df.loc[length:, [column]]
+
+    return train, test
+    
+
+def metric_evals(test_data, predictions,):
+    """ 
+        Evaluates MAPE and RMSE for model predictions.
+        Data sets must be of the same length
+    """
+
+    mape = mean_absolute_percentage_error(test_data, predictions)
+    rmse = mean_squared_error(test_data, predictions, square=False)
+
+    return mape, rmse
+
+
+def AR_plot(train_data, test_data, predictions, conf_interval):
+    """
+        Plot of actuals vs predictions
+    """
+
+
+    x_axis = np.arange(train_data.shape[0] + predictions.shape[0])
+    x_years = x_axis
+
+    plt.plot(x_years[x_axis[:train_data.shape[0]]], train_data, alpha=0.75)
+    plt.plot(x_years[x_axis[train_data.shape[0]:]], predictions, alpha=0.75)  # Forecasts
+    plt.scatter(x_years[x_axis[train_data.shape[0]:]], test_data, alpha=0.4, marker='x', color='g')  # Test data
+    plt.fill_between(x_years[x_axis[-predictions.shape[0]:]], conf_interval[:, 0], conf_interval[:, 1],
+                 alpha=0.1, color='b')
+    plt.title("Model Test predictions")
+    plt.xlabel("Year")
+
+
+def create_dataset(dataset, time_step):
+    """
+        Create subset of data for LSTM model
+    """
+
+    dataX, dataY = [], []
+    
+    for i in range(len(dataset)-time_step-1):
+        a = dataset[i:(i+time_step), 0]
+        dataX.append(a)
+        dataY.append(dataset[i + time_step, 0])
+
+    return np.array(dataX), np.array(dataY)
+
+
+def LSTM_model(input1, input2):
+    """ 
+        Build LSTM model
+        Inputs: input1 and 2 are input shapes
+    """
+
+    model=Sequential()
+    # Adding first LSTM layer
+    model.add(LSTM(150,return_sequences=True,input_shape=(20,1)))
+    model.add(Dropout(0.2)) 
+    # second LSTM layer 
+    model.add(LSTM(150,return_sequences=True))
+    # Adding third LSTM layer 
+    model.add(LSTM(150, return_sequences=True))
+    model.add(Dropout(0.2))
+    # Adding fourth LSTM layer
+    model.add(LSTM(150))
+    model.add(Dropout(0.2))
+    # Adding the Output Layer
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error',optimizer='adam')
+
+    return model
