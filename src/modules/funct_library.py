@@ -272,7 +272,7 @@ def create_dataset(dataset, time_step):
     return np.array(dataX), np.array(dataY)
 
 
-def LSTM_model(input1, input2):
+def LSTM_model(n_steps, feature_length=1):
     """ 
         Build LSTM model
         Inputs: input1 and 2 are input shapes
@@ -280,7 +280,7 @@ def LSTM_model(input1, input2):
 
     model=Sequential()
     # Adding first LSTM layer
-    model.add(LSTM(150,return_sequences=True,input_shape=(20,1)))
+    model.add(LSTM(150,return_sequences=True, input_shape=(n_steps, feature_length)))
     model.add(Dropout(0.2)) 
     # second LSTM layer 
     model.add(LSTM(150,return_sequences=True))
@@ -296,7 +296,7 @@ def LSTM_model(input1, input2):
 
     return model
 
-def CNN_model(n_seq, n_steps, feature_length):
+def CNN_model(n_seq, n_steps, feature_length=1):
     """ 
         Build CNN-LSTM model
         Inputs: input shapes required for model
@@ -304,7 +304,7 @@ def CNN_model(n_seq, n_steps, feature_length):
 
     model=Sequential()
     # Adding CNN layer
-    model.add(TimeDistributed(Conv1D(filters=64, kernel_size=1, activation='relu', input_shape=(20,1))))
+    model.add(TimeDistributed(Conv1D(filters=64, kernel_size=1, activation='relu', input_shape=(n_seq, n_steps, feature_length))))
     model.add(Dropout(0.2)) 
     # second LSTM layer 
     model.add(LSTM(150,return_sequences=True))
@@ -359,7 +359,7 @@ def plot_loss(history, model_name):
 
     return
 
-def plot_predictions(time_step, scaled_data, train_predict, test_predict):
+def plot_predictions(time_step, scaled_data, train_predict, test_predict, scaler):
     """
         Plot Train, test and actual data
     """
@@ -386,3 +386,19 @@ def plot_predictions(time_step, scaled_data, train_predict, test_predict):
     plt.show()
 
     return
+
+
+def predict_inv_transform(model, X_train, X_test, scaler):
+    """
+        Create predictions from model and transform back to original data
+        Inputs: model, X_train and test, scaler model
+        Output: (train_pred, test_pred)
+    """
+
+    train_predict=model.predict(X_train)
+    test_predict=model.predict(X_test)
+
+    train_predict=scaler.inverse_transform(train_predict)
+    test_predict=scaler.inverse_transform(test_predict)
+
+    return train_predict, test_predict

@@ -65,6 +65,7 @@ base_mape, base_RMSE = metric_evals(test[:test_length], df.loc[train_length:, 'b
 
 eval_df.loc[0] = ['Base'] + [base_mape] + [base_RMSE]
 
+
 # ARIMA model
 
 modelAR = pm.auto_arima(train, start_p=1, start_q=1,
@@ -127,7 +128,7 @@ print(X_test.shape), print(ytest.shape)
 
 # reshape for LSTM
 
-X_train =X_train.reshape(X_train.shape[0],X_train.shape[1] , 1)
+X_train = X_train.reshape(X_train.shape[0],X_train.shape[1] , 1)
 X_test = X_test.reshape(X_test.shape[0],X_test.shape[1] , 1)
 
 modelLSTM = LSTM_model(time_step, feature_length)
@@ -135,11 +136,11 @@ modelLSTM = LSTM_model(time_step, feature_length)
 modelLSTM.summary()
 
 
-monitor = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
+monitorLSTM = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
         verbose=1, mode='auto', restore_best_weights=True)
 
-history=modelLSTM.fit(X_train,y_train,validation_data=(X_test,ytest),
-        callbacks=[monitor],verbose=1,epochs=50)
+historyLSTM=modelLSTM.fit(X_train,y_train,validation_data=(X_test,ytest),
+        callbacks=[monitorLSTM],verbose=0,epochs=50)
 
 
 train_predict=modelLSTM.predict(X_train)
@@ -180,11 +181,11 @@ modelCNN = CNN_model(time_step, n_seq, n_steps, feature_length)
 modelCNN.summary()
 
 
-monitor = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
+monitorCNN = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
         verbose=1, mode='auto', restore_best_weights=True)
 
 historyCNN = modelCNN.fit(X_train,y_train,validation_data=(X_test,ytest),
-        callbacks=[monitor],verbose=1,epochs=50)
+        callbacks=[monitorCNN],verbose=0,epochs=50)
 
 
 train_predCNN=modelCNN.predict(X_train)
@@ -225,11 +226,11 @@ modelConv = Conv_model(time_step, n_seq, n_steps, feature_length)
 modelConv.summary()
 
 
-monitorconv = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
+monitorConv = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
         verbose=1, mode='auto', restore_best_weights=True)
 
 historyconv = modelCNN.fit(X_train,y_train,validation_data=(X_test,ytest),
-        callbacks=[monitor],verbose=1,epochs=50)
+        callbacks=[monitorConv],verbose=0,epochs=50)
 
 
 train_predConv=modelConv.predict(X_train)
