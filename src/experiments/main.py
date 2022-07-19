@@ -5,7 +5,7 @@ import os
 import json
 import psycopg2 as ps
 from modules.funct_library import *
-from tensorflow.keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping
 
 
 # import time series data
@@ -107,10 +107,14 @@ eval_df.loc[2] = ['SARIMA'] + [SAR_mape] + [SAR_rmse]
 
 # LSTM model
 
+feature_length = 1
 time_step = 20
 
-X_train, y_train = create_dataset(train, time_step)
-X_test, ytest = create_dataset(test, time_step)
+scaler=MinMaxScaler(feature_range=(0,1))
+scaled_data = scaler.fit_transform(np.array(df['Volume_kbbld_gas']).reshape(-1,1))
+
+X_train, y_train = create_dataset(scaled_data[:train_length,:], time_step)
+X_test, ytest = create_dataset(scaled_data[train_length:,:], time_step)
 
 print(X_train.shape), print(y_train.shape)
 
@@ -121,7 +125,7 @@ print(X_test.shape), print(ytest.shape)
 X_train =X_train.reshape(X_train.shape[0],X_train.shape[1] , 1)
 X_test = X_test.reshape(X_test.shape[0],X_test.shape[1] , 1)
 
-modelLSTM = LSTM_model(time_step,1)
+modelLSTM = LSTM_model(time_step, feature_length)
 
 modelLSTM.summary()
 
@@ -142,4 +146,94 @@ test_predict=scaler.inverse_transform(test_predict)
 
 LSTM_mape, LSTM_rmse = metric_evals(test[:len(test)-21], test_predict)
 
-eval_df.loc[2] = ['SARIMA'] + [SAR_mape] + [SAR_rmse]
+eval_df.loc[3] = ['LSTM'] + [LSTM_mape] + [LSTM_rmse]
+
+
+# CNN-LSTM model
+
+time_step = 20
+n_seq = 5
+n_steps = 4
+
+scaler=MinMaxScaler(feature_range=(0,1))
+scaled_data = scaler.fit_transform(np.array(df['Volume_kbbld_gas']).reshape(-1,1))
+
+X_train, y_train = create_dataset(scaled_data[:train_length,:], time_step)
+X_test, ytest = create_dataset(scaled_data[train_length:,:], time_step)
+
+print(X_train.shape), print(y_train.shape)
+
+print(X_test.shape), print(ytest.shape)
+
+# reshape for CNN
+
+X_train =X_train.reshape(X_train.shape[0],X_train.shape[1] , 1)
+X_test = X_test.reshape(X_test.shape[0],X_test.shape[1] , 1)
+
+modelCNN = CNN_model(time_step, n_seq, n_steps, feature_length)
+
+modelCNN.summary()
+
+
+monitor = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
+        verbose=1, mode='auto', restore_best_weights=True)
+
+historyCNN = modelCNN.fit(X_train,y_train,validation_data=(X_test,ytest),
+        callbacks=[monitor],verbose=1,epochs=50)
+
+
+train_predCNN=modelCNN.predict(X_train)
+test_predCNN=modelCNN.predict(X_test)
+
+train_predCNN=scaler.inverse_transform(train_predict)
+test_predCNN=scaler.inverse_transform(test_predict)
+
+
+CNN_mape, CNN_rmse = metric_evals(test[:len(test)-21], test_predCNN)
+
+eval_df.loc[4] = ['CNN-LSTM'] + [CNN_mape] + [CNN_rmse]
+
+
+# Conv-LSTM model
+
+time_stepconv = 80
+n_seqconv = 16
+n_stepsconv = 5
+
+scaler=MinMaxScaler(feature_range=(0,1))
+scaled_data = scaler.fit_transform(np.array(df['Volume_kbbld_gas']).reshape(-1,1))
+
+X_train, y_train = create_dataset(scaled_data[:train_length,:], time_stepconv)
+X_test, ytest = create_dataset(scaled_data[train_length:,:], time_stepconv)
+
+print(X_train.shape), print(y_train.shape)
+
+print(X_test.shape), print(ytest.shape)
+
+# reshape for Conv-LSTM
+
+X_train =X_train.reshape(X_train.shape[0],X_train.shape[1] , 1)
+X_test = X_test.reshape(X_test.shape[0],X_test.shape[1] , 1)
+
+modelConv = Conv_model(time_step, n_seq, n_steps, feature_length)
+
+modelConv.summary()
+
+
+monitorconv = EarlyStopping(monitor='val_loss', min_delta=1e-3, patience=30, 
+        verbose=1, mode='auto', restore_best_weights=True)
+
+historyconv = modelCNN.fit(X_train,y_train,validation_data=(X_test,ytest),
+        callbacks=[monitor],verbose=1,epochs=50)
+
+
+train_predConv=modelConv.predict(X_train)
+test_predConv=modelConv.predict(X_test)
+
+train_predConv=scaler.inverse_transform(train_predict)
+test_predConv=scaler.inverse_transform(test_predict)
+
+
+Conv_mape, Conv_rmse = metric_evals(test[:len(test)-21], test_predConv)
+
+eval_df.loc[5] = ['Conv-LSTM'] + [Conv_mape] + [Conv_rmse]

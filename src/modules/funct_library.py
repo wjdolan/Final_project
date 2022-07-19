@@ -14,9 +14,12 @@ from pandas.plotting import register_matplotlib_converters
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import pmdarima as pm
 from pmdarima.arima.utils import ndiffs
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense,Dropout
-from tensorflow.keras.layers import LSTM
+from keras.models import Sequential
+from keras.layers import Dense,Dropout
+from keras.layers import LSTM, TimeDistributed, Flatten
+from keras.layers.convolutional import Conv1D, MaxPooling1D
+from keras.layers import ConvLSTM2D
+from keras.callbacks import EarlyStopping
 
 
 
@@ -292,3 +295,94 @@ def LSTM_model(input1, input2):
     model.compile(loss='mean_squared_error',optimizer='adam')
 
     return model
+
+def CNN_model(n_seq, n_steps, feature_length):
+    """ 
+        Build CNN-LSTM model
+        Inputs: input shapes required for model
+    """
+
+    model=Sequential()
+    # Adding CNN layer
+    model.add(TimeDistributed(Conv1D(filters=64, kernel_size=1, activation='relu', input_shape=(20,1))))
+    model.add(Dropout(0.2)) 
+    # second LSTM layer 
+    model.add(LSTM(150,return_sequences=True))
+    # Adding third LSTM layer 
+    model.add(LSTM(150, return_sequences=True))
+    model.add(Dropout(0.2))
+    # Adding fourth LSTM layer
+    model.add(LSTM(150))
+    model.add(Dropout(0.2))
+    # Adding the Output Layer
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error',optimizer='adam')
+
+    return model
+
+
+def Conv_model(n_seq, n_steps, feature_length):
+    """
+        Build Conv-LSTM model
+        Inputs: input shapes required for model
+    """
+
+    model=Sequential()
+    # Adding Conv layer
+    model.add(ConvLSTM2D(filters=128, kernel_size=(1,4), activation='relu', input_shape=(16,1,5,1)))
+    # add flatten layer
+    model.add(Flatten())
+    # add layer 
+    model.add(Dense(200, activation='relu'))
+    # add layer
+    model.add(Dense(100, activation='relu'))
+    # add the Output Layer
+    model.add(Dense(1))
+
+    model.compile(loss='mean_squared_error',optimizer='adam')
+
+    return model
+
+
+def plot_loss(history, model_name):
+    """
+        Plot / compare training losses
+    """
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title(model_name + ' model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show();
+
+    return
+
+def plot_predictions(time_step, scaled_data, train_predict, test_predict):
+    """
+        Plot Train, test and actual data
+    """
+
+    fig, ax = plt.subplots(figsize=(10,7))
+    trainPredictPlot = np.empty_like(scaled_data)
+    trainPredictPlot[:, :] = np.nan
+    trainPredictPlot[time_step:len(train_predict) + time_step, :] = train_predict
+
+    # shift test predictions for plotting
+    testPredictPlot = np.empty_like(scaled_data)
+    testPredictPlot[:, :] = np.nan
+    testPredictPlot[len(train_predict)+(time_step*2)+1:len(scaled_data)-1, :] = test_predict
+
+    # plot baseline and predictions
+    plt.plot(scaler.inverse_transform(scaled_data))
+
+    plt.plot(trainPredictPlot)
+    plt.plot(testPredictPlot)
+    plt.legend(['Data','train','test'])
+    plt.xlabel('Time Steps')
+    plt.ylabel('Volume kbbl_d')
+    plt.title('CNN-LSTM test Predictions')
+    plt.show()
+
+    return
