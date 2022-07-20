@@ -273,5 +273,4 @@ Prophet_preds = modelProphet.make_future_dataframe(periods=test_length)
 FB_mape, FB_rmse = metric_evals(test, Prophet_preds)
 
 
-
 eval_df.loc[6] = ['Prophet'] + [FB_mape] + [FB_rmse]

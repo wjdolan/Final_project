@@ -70,19 +70,15 @@ def get_request(response):
 def request_to_df(root_URL, url_series, df, name):
     API_KEY = str(os.environ.get('EIA_API_KEY'))
     r_url = root_URL + API_KEY + url_series
-    #r_url2 = URL + API_KEY + url_series2
     response = requests.get(r_url)
-    # response2 = requests.get(r_url2)
-
+    
     for value in response.json()['series'][0]['data']:
         df_date = value[0]
         df_value = value[1]
 
-        if name == "gasoline":
-            df = df.append({'Date': df_date, 'Volume_kbbld_gas': df_value}, ignore_index=True)
+        return df.append({'Date': df_date, 'Volume_kbbld': df_value}, ignore_index=True)
        
-        return df
-
+        
 
 def ADF_Stationarity_Test(timeseries, significance_level=0.05):
     result = adfuller(timeseries)
