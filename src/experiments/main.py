@@ -4,28 +4,28 @@ import requests
 import os
 import json
 import psycopg2 as ps
+from prophet import Prophet
 from modules.funct_library import *
 from keras.callbacks import EarlyStopping
 
 
 # import time series data
 
-df_gas = pd.DataFrame(columns=["Date", "Volume_kbbld_gas"])
+df = pd.DataFrame(columns=["Date", "Volume_kbbld"])
 
 
 root_URL = "https://api.eia.gov/series/?api_key=" 
 
 gasoline_series = "&series_id=PET.MGFUPUS2.M"
+jetfuel_series = "&series_id=PET.MKJUPUS2.M"
+ethane_series = "&series_id=PET.MENRX_NUS_1.M"
+propane_series = "&series_id=PET.MPARX_NUS_1.M"
+crudeoil_series = "&series_id=PET.MCRFPUS1.M"
+
+fuel_series = 'gasoline'
 
 
-request_to_df(root_URL, gasoline_series, "gasoline")
-
-
-# Data preprocessing
-
-df_gas['Date'] = pd.to_datetime(df['Date'], format='%Y%m')
-
-df_gas.sort_values(by=['Date'], ascending=True, inplace=True)
+df = request_to_df(root_URL, gasoline_series, "gasoline")
 
 
 # Load database
@@ -37,23 +37,38 @@ username = USERNAME = str(os.environ.get('AWS_RDS_USERNAME'))
 password = PWORD= str(os.environ.get('AWS_RDS_PWD'))
 conn = None
 
+curr = conn.cursor()
 
-# Pull from database
+create_table(curr)
+
+new_data_df = update_db(curr, df)
+
+append_from_df_to_db(curr, new_data_df)
+
+conn.commit()
+
+
+
+# Data preprocessing
+
+df_processed = data_preprocess(df)
 
 
 # Models:
+# model variables
+
 
 train_length = 800 # train split
 test_length = len(df) - train_length    # test split 
 
-train, test = tts(df,train_length, 'Volume_kbbld_gas')
+train, test = tts(df,train_length, 'Volume_kbbld')
 
 eval_df = pd.DataFrame(columns=['Model', 'MAPE', 'RMSE'])
 
 
 # Baseline model (6-step moving average)
 
-df['MA6'] = df['Volume_kbbld_gas'].rolling(6).mean()
+df['MA6'] = df['Volume_kbbld'].rolling(6).mean()
 df = df.fillna(0)
 
 
@@ -243,3 +258,20 @@ test_predConv=scaler.inverse_transform(test_predict)
 Conv_mape, Conv_rmse = metric_evals(test[:len(test)-21], test_predConv)
 
 eval_df.loc[5] = ['Conv-LSTM'] + [Conv_mape] + [Conv_rmse]
+
+
+# FB Prophet model
+
+
+fb_train = prophet_process(train, train.columns[0], train.columns[1])
+
+modelProphet = Prophet()
+modelProphet.fit(fb_train)
+
+Prophet_preds = modelProphet.make_future_dataframe(periods=test_length)
+
+FB_mape, FB_rmse = metric_evals(test, Prophet_preds)
+
+
+
+eval_df.loc[6] = ['Prophet'] + [FB_mape] + [FB_rmse]

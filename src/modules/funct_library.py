@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from regex import E
+import requests
+import psycopg2 as ps
+import os
+import json
 import seaborn as sns
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, precision_recall_curve
 from sklearn.preprocessing import MinMaxScaler, FunctionTransformer
@@ -14,6 +18,7 @@ from pandas.plotting import register_matplotlib_converters
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import pmdarima as pm
 from pmdarima.arima.utils import ndiffs
+from prophet import Prophet
 from keras.models import Sequential
 from keras.layers import Dense,Dropout
 from keras.layers import LSTM, TimeDistributed, Flatten
@@ -62,9 +67,9 @@ def get_request(response):
 
         return df
 
-def request_to_df(URL, url_series, df, name):
+def request_to_df(root_URL, url_series, df, name):
     API_KEY = str(os.environ.get('EIA_API_KEY'))
-    r_url = URL + API_KEY + url_series
+    r_url = root_URL + API_KEY + url_series
     #r_url2 = URL + API_KEY + url_series2
     response = requests.get(r_url)
     # response2 = requests.get(r_url2)
@@ -210,9 +215,83 @@ def create_table(curr):
     create_table_command = (""" CREATE TABLE IF NOT EXISTS Fuel_demand (
                 index VARCHAR (255) PRIMARY KEY,
                 Date DATE NOT NULL,
-                Volume_gas_kbbld INTEGER NOT NULL)""")
+                Volume_kbbld INTEGER NOT NULL)""")
 
     curr.execute(create_table_command)
+    return
+
+def check_if_row_exists(curr, Date):
+    """
+        Checks if row entry in database already exists based on date
+    """
+    query = (""" SELECT Date FROM Fuel_demand WHERE Date = %s""")
+    curr.execute(query, (Date,))
+
+    return curr.fetchone() is not None
+
+def update_row(curr, Date, Volume_kbbld):
+    """ 
+        Updates row entry 
+    """
+
+    query = ("""UPDATE Fuel_demand
+                    SET Date = %s,
+                    Volume_kbbld = %s
+                    WHERE Date = %s;""")
+
+    updated_var = (Date, Volume_kbbld)
+    curr.execute(query, updated_var)
+
+    return
+
+def update_db(curr, df):
+    """
+        Check if row exists and update data and return df of new data to add
+    """
+
+    temp_df = pd.DataFrame(columns=["Date", "Volume_kbbld"])
+
+    for i, row in df.iterrows():
+        if check_if_row_exists():
+                update_row(curr, row['Date'], row['Volume_kbbld'])
+        else:
+                temp_df = temp_df.append(row)
+                
+    return temp_df
+
+
+def insert_data(curr, Date, Volume_kbbld):
+    """
+        Insert new data into db table
+    """
+
+    insert_data = ("""INSERT INTO Fuel_demand (Date, Volume_kbbld) 
+                        VALUES(%s, %s);""")
+
+    row_to_insert = (Date, Volume_kbbld)
+    curr.execute(insert_data, row_to_insert)
+
+    return
+
+def append_from_df_to_db(curr, df):
+    """
+        Append data to db from temporary df
+    """
+
+    for i, row in df.iterrows():
+        insert_data(curr, row['Date'], df['Volume_kbbld'])
+
+    return
+
+def data_preprocess(df):
+    """
+        Preprocess df for models
+    """
+
+    df['Date'] = pd.to_datetime(df['Date'], format='%Y%m')
+    
+    return df.sort_values(by=['Date'], ascending=True, inplace=True)
+
 
 
 def tts(df,length,column):
@@ -342,6 +421,15 @@ def Conv_model(n_seq, n_steps, feature_length):
     model.compile(loss='mean_squared_error',optimizer='adam')
 
     return model
+
+def prophet_process(data, column1, column2):
+    """
+        Prophet model preprocessing
+    """
+
+    return data.rename(columns={column1: 'ds', column2: 'y' })
+    
+    
 
 
 def plot_loss(history, model_name):
