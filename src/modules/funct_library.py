@@ -80,105 +80,6 @@ def request_to_df(root_URL, url_series, df, name):
        
         
 
-def ADF_Stationarity_Test(timeseries, significance_level=0.05):
-    result = adfuller(timeseries)
-    print('ADF Statistic: %f' % result[0])
-    print('p-value: %f' % result[1])
-    print('Critical Values:')
-
-    for key, value in result[4].items():
-        print('\t%s: %.3f' % (key, value))
-        
-    if result[1] > significance_level:
-        result_str = 'NON-stationary timeseries'
-    else:
-        result_str = 'Stationary timeseries'
-        
-    return result_str
-
-
-def differencing(series):
-  """
-    Difference time series and view autocorrelation
-
-  """
-  # Original series
-  fig, axes = plt.subplots(3, 2, sharex=False)
-
-  axes[0, 0].plot(series); 
-  axes[0, 0].set_title('Original Series')
-  plot_acf(series, ax=axes[0, 1])
-
-  # 1st Differencing
-  axes[1, 0].plot(series.diff()); 
-  axes[1, 0].set_title('1st Order Differencing')
-  plot_acf(series.diff().dropna(), ax=axes[1, 1])
-
-  # 2nd Differencing
-  axes[2, 0].plot(series.diff().diff()); 
-  axes[2, 0].set_title('2nd Order Differencing')
-  plot_acf(series.diff().diff().dropna(), ax=axes[2, 1])
-
-  fig.tight_layout()
-
-  # fig.savefig('gas_differencing.png')
-
-  plt.show()
-
-
-def n_diffs(series):
-  """ 
-    Returns multiple estimates of differencing order
-  """
-  ## Adf Test
-  adf = ndiffs(series, test='adf')  
-
-  # KPSS test
-  kpss = ndiffs(series, test='kpss')  
-
-  # PP test:
-  pp = ndiffs(series, test='pp')  
-
-  print(f'ADF test: {adf}\n KPSS test: {kpss}\n PP test: {pp}')
-
-
-def graph_pacf(series):
-  """
-    Plot PACF of 1st differenced series
-  """
-  plt.rcParams.update({'figure.figsize':(9,3), 'figure.dpi':120})
-  fig, axes = plt.subplots(1, 2, sharex=False)
-
-  axes[0].plot(series.diff())
-  axes[0].set_title('1st Differencing')
-  axes[1].set(ylim=(0,5))
-
-  plot_pacf(series.diff().dropna(), ax=axes[1])
-
-#   fig.savefig('gas_pacf_p.png')
-
-  plt.show();
-
-
-  def graph_acf(series):
-    """
-    Plot ACF of 1st differenced series
-    """
-    plt.rcParams.update({'figure.figsize':(9,3), 'figure.dpi':120})
-    fig, axes = plt.subplots(1, 2, sharex=False)
-
-    axes[0].plot(series.diff())
-    axes[0].set_title('1st Differencing')
-    axes[1].set(ylim=(0,5))
-
-    plot_acf(series.diff().dropna(), ax=axes[1])
-
-    # fig.savefig('gas_acf_q.png')
-
-    plt.show();
-
-
-
 def resid_plot(model):
   """
     Plot residual errors
@@ -249,7 +150,8 @@ def update_db(curr, df):
 
     for i, row in df.iterrows():
         if check_if_row_exists():
-                update_row(curr, row['Date'], row['Volume_kbbld'])
+            pass
+            # update_row(curr, row['Date'], row['Volume_kbbld']) # include if overwriting row
         else:
                 temp_df = temp_df.append(row)
                 
