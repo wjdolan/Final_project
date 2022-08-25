@@ -12,7 +12,7 @@ modelTrainer = st.container()
 @st.cache(allow_output_mutation=True)
 def make_forecast(series, df):
     """
-        Makes forecast from series input
+        Make forecast from series input
         Input: selected from dropdown list (series, df)
     """
     
@@ -55,4 +55,4 @@ with modelTrainer:
         st.plotly_chart(plotly_fig)
 
     else:
-        st.write('Click button to forecast')
+        st.write('Click to forecast')
